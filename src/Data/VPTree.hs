@@ -4,6 +4,7 @@ module Data.VPTree
     , findNearest
     , findWithin
     , listToVPTree
+    , verify
     ) where
 
 import Data.List (sortBy, maximumBy)
@@ -12,6 +13,17 @@ import Data.VPTree.MetricSpace
 
 data VPTree a = Split a Double (VPTree a) (VPTree a) | Leaf [a]
     deriving (Show)
+
+verify :: (MetricSpace a) => VPTree a -> Maybe [a]
+verify (Leaf as) = Just as
+verify (Split c t l r) = do
+    l' <- verify l
+    r' <- verify r
+    descendants <-
+        if (all ((<= t) . distance c) l') && (all ((>= t) . distance c) r')
+            then Just $ l' ++ r'
+            else Nothing
+    return descendants
 
 splitFrom :: (MetricSpace a) => a -> [a] -> (Double, ([a], [a]))
 splitFrom p as =
@@ -53,16 +65,21 @@ merge t l r =
     where
         isSafe = ((< t) . snd)
 
--- Returns all points in the VPTree, in order of their distance from p.
-findNearest :: (MetricSpace a) => a -> VPTree a -> [(a, Double)]
-findNearest p (Split c t l r) =
+-- minimum, point, tree
+findNearest' :: MetricSpace a => Double -> a -> VPTree a -> [(a, Double)]
+findNearest' m p (Split c t l r) =
     if d < t
-        then merge (t - d) (findNearest p l) (findNearest p r)
-        else merge (d - t) (findNearest p r) (findNearest p l)
+        then merge' (min m (t - d)) l r
+        else merge' (min m (d - t)) r l
     where
         d = distance p c
-findNearest p (Leaf as) =
+        merge' m' l' r' = merge m' (findNearest' m' p l') (findNearest' m' p r')
+findNearest' _ p (Leaf as) =
     sortBy (comparing snd) $ map (pair (distance p)) as
+
+-- Returns all points in the VPTree, in order of their distance from p.
+findNearest :: (MetricSpace a) => a -> VPTree a -> [(a, Double)]
+findNearest = findNearest' (1 / 0)
 
 -- Returns all points within the provided distance of the point, in order of
 -- their distance from the point.
