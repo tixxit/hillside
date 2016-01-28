@@ -3,6 +3,7 @@ module Main where
 import Control.Monad.Random
 import System.Random
 
+import Data.Ord
 import Data.VPTree
 import Data.VPTree.MetricSpace
 
@@ -23,6 +24,12 @@ instance Random Point where
         x <- liftRand $ randomR (l, r)
         y <- liftRand $ randomR (b, t)
         return (Point x y)
+
+isSorted :: Ord a => [a] -> Bool
+isSorted (x : y : as)
+    | x <= y    = isSorted as
+    | otherwise = False
+isSorted _ = True
 
 main :: IO ()
 main = putStrLn "Hello, world!"
